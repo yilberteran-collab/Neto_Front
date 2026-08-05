@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neto In-Out - Procesador de Divisas</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.1);
+      padding: 32px;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .header { text-align: center; margin-bottom: 28px; }
+    .header h2 { color: #202124; font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .header p  { color: #5f6368; font-size: 13px; }
+
+    /* ── Upload zone ──────────────────────────────────────────── */
+    .form-group { margin-bottom: 20px; }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #5f6368;
+      margin-bottom: 6px;
+    }
+
+    .upload-zone {
+      border: 2px dashed #c5cae9;
+      border-radius: 10px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.over { border-color: #1a73e8; background: #e8f0fe; }
+    .upload-zone svg { width: 40px; height: 40px; fill: #9aa0a6; margin-bottom: 10px; }
+    .upload-zone p { color: #5f6368; font-size: 14px; line-height: 1.6; }
+    .file-name { margin-top: 8px; font-weight: 600; color: #1a73e8; font-size: 13px; word-break: break-all; }
+    #csvInput { display: none; }
+
+    /* ── Selector de fecha Hoy / Ayer ─────────────────────────── */
+    .date-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-outline {
+      padding: 8px 20px;
+      background: #fff;
+      color: #1a73e8;
+      border: 2px solid #1a73e8;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+      white-space: nowrap;
+    }
+    .btn-outline:hover { background: #e8f0fe; }
+    .btn-outline.active { background: #1a73e8; color: #fff; }
+
+    input[type="date"]#fechaProceso {
+      flex: 1;
+      min-width: 140px;
+      padding: 8px 12px;
+      border: 1.5px solid #dadce0;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #202124;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="date"]#fechaProceso:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26,115,232,.2);
+    }
+
+    /* ── Botón principal ──────────────────────────────────────── */
+    .btn-primary {
+      width: 100%;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover:not(:disabled) { background: #1557b0; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Botones individuales (3 columnas) ───────────────────── */
+    .btn-solo-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .btn-solo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      background: #fff;
+      border: 1.5px solid #dadce0;
+      border-radius: 8px;
+      padding: 10px 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #5f6368;
+      cursor: pointer;
+      transition: border-color .2s, color .2s, background .2s;
+      line-height: 1.3;
+      text-align: center;
+    }
+    .btn-solo .solo-icon { font-size: 18px; line-height: 1; }
+    .btn-solo-neto:hover:not(:disabled)    { border-color: #1a73e8; color: #1a73e8; background: #e8f0fe; }
+    .btn-solo-envios:hover:not(:disabled)  { border-color: #34a853; color: #137333; background: #e6f4ea; }
+    .btn-solo-aliados:hover:not(:disabled) { border-color: #9c27b0; color: #6a1980; background: #f3e5f5; }
+    .btn-solo:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Divisor ──────────────────────────────────────────────── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 14px 0 0;
+    }
+    .divider hr  { flex: 1; border: none; border-top: 1px solid #e0e0e0; }
+    .divider span {
+      font-size: 11px;
+      color: #9aa0a6;
+      font-weight: 600;
+      white-space: nowrap;
+      letter-spacing: .4px;
+    }
+
+    /* ── Sección Cierre de Mes ────────────────────────────────── */
+    .cierre-section {
+      margin-top: 16px;
+      padding: 16px;
+      background: #fffbf0;
+      border: 1.5px solid #fbbc04;
+      border-radius: 10px;
+    }
+    .cierre-section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .cierre-section-header span {
+      font-size: 13px;
+      font-weight: 700;
+      color: #b06000;
+    }
+    .cierre-desc {
+      font-size: 12px;
+      color: #7a5c00;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .btn-cierre {
+      width: 100%;
+      background: #fff;
+      color: #b06000;
+      border: 2px solid #fbbc04;
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .btn-cierre:hover:not(:disabled) { background: #fbbc04; color: #202124; }
+    .btn-cierre:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Status Panel ─────────────────────────────────────────── */
+    .status-panel {
+      margin-top: 28px;
+      border-top: 1px solid #dadce0;
+      padding-top: 20px;
+      display: none;
+    }
+    .status-panel h3 { font-size: 15px; font-weight: 600; color: #202124; margin-bottom: 14px; }
+
+    .status-list { list-style: none; }
+    .status-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 12px 14px;
+      border-radius: 6px;
+      background: #f8f9fa;
+      border-left: 4px solid #dadce0;
+    }
+    .status-item.success    { border-left-color: #34a853; background: #e6f4ea; color: #137333; }
+    .status-item.error      { border-left-color: #ea4335; background: #fce8e6; color: #c5221f; }
+    .status-item.processing { border-left-color: #fbbc04; background: #fef7e0; color: #b06000; }
+    .status-item.warning    { border-left-color: #ff9800; background: #fff3e0; color: #e65100; }
+
+    .status-icon { margin-right: 10px; font-size: 16px; flex-shrink: 0; line-height: 1; }
+
+    /* ── Spinner ──────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2.5px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div class="header">
+    <h2>Neto In-Out y Aliados</h2>
+    <p>Sube el reporte CSV para actualizar las bases de datos</p>
+  </div>
+
+  <!-- Zona de carga con Drag & Drop -->
+  <div class="form-group">
+    <span class="form-label">Archivo CSV de Operaciones:</span>
+    <div class="upload-zone" id="uploadZone">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6zm2 14h-3v3h-2v-3H8l4-4 4 4zm-3-7V3.5L18.5 9H13z"/></svg>
+      <p>Haga clic para seleccionar un archivo CSV<br>o arrástrelo y suéltelo aquí</p>
+      <div class="file-name" id="fileName">Ningún archivo seleccionado</div>
+      <input type="file" id="csvInput" accept=".csv">
+    </div>
+  </div>
+
+  <!-- Selector de fecha con Hoy / Ayer -->
+  <div class="form-group">
+    <span class="form-label">Fecha de las operaciones:</span>
+    <div class="date-selector">
+      <button class="btn-outline" id="btnHoy"  onclick="setFecha('hoy')">Hoy</button>
+      <button class="btn-outline" id="btnAyer" onclick="setFecha('ayer')">Ayer</button>
+      <input type="date" id="fechaProceso" onchange="onFechaChange()">
+    </div>
+  </div>
+
+  <!-- ① Botón principal — Cascada completa (SIN cierre de mes) -->
+  <button id="btnProcesar" class="btn-primary" onclick="iniciarProceso()" disabled>
+    ⚡ Procesar y Guardar en Google Sheets
+  </button>
+
+  <!-- ② Divisor + Botones individuales -->
+  <div class="divider">
+    <hr><span>O EJECUTAR POR SEPARADO</span><hr>
+  </div>
+
+  <div class="btn-solo-row">
+    <button id="btnSoloNeto" class="btn-solo btn-solo-neto" onclick="ejecutarSolo('neto')" disabled>
+      <span class="solo-icon">🔢</span>Solo Neto General
+    </button>
+    <button id="btnSoloEnvios" class="btn-solo btn-solo-envios" onclick="ejecutarSolo('envios')" disabled>
+      <span class="solo-icon">📊</span>Solo Límites Envíos
+    </button>
+    <button id="btnSoloAliados" class="btn-solo btn-solo-aliados" onclick="ejecutarSolo('aliados')" disabled>
+      <span class="solo-icon">🤝</span>Solo Aliados
+    </button>
+  </div>
+
+  <!-- ③ Cierre de Mes — Operación independiente de mantenimiento -->
+  <div class="cierre-section">
+    <div class="cierre-section-header">
+      <span>🗓️ Mantenimiento Mensual — Cierre de Mes</span>
+    </div>
+    <p class="cierre-desc">
+      Ejecutar <strong>solo una vez</strong> al inicio de un nuevo mes para archivar los datos del mes anterior
+      en la bóveda histórica y dejar la base lista para el nuevo período.
+      <br>No requiere cargar un CSV.
+    </p>
+    <button id="btnCierre" class="btn-cierre" onclick="ejecutarCierreDeMes()" disabled>
+      🗂️ Ejecutar Cierre de Mes
+    </button>
+    <div id="status-cierre" class="status-item" style="display:none; margin-top:10px;"></div>
+  </div>
+
+  <!-- Panel de Estado en Cascada -->
+  <div id="statusPanel" class="status-panel">
+    <h3>Estado de Ejecución</h3>
+    <ul class="status-list">
+      <li id="status-neto" class="status-item">
+        <span class="status-icon">⏳</span>
+        <span><strong>1. Neto General:</strong> Esperando...</span>
+      </li>
+      <li id="status-envios" class="status-item">
+        <span class="status-icon">⏳</span>
+        <span><strong>2. Límites de Envíos:</strong> Esperando...</span>
+      </li>
+      <li id="status-aliados" class="status-item">
+        <span class="status-icon">⏳</span>
+        <span><strong>3. Histórico Aliados:</strong> Esperando...</span>
+      </li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+  // =========================================================================
+  // CONFIGURACIÓN DE LA API
+  // Pega aquí la URL de despliegue del Web App de Google Apps Script.
+  // Debe terminar en /exec  (NO uses la de /dev, esa no acepta peticiones
+  // anónimas y provocará errores de CORS / redirección al login).
+  // =========================================================================
+  var WEB_APP_URL = 'https://script.google.com/macros/s/PEGA_AQUI_TU_ID_DE_DESPLIEGUE/exec';
+
+  var fileContent = null;
+
+  var LABELS = {
+    'neto':    '1. Neto General',
+    'envios':  '2. Límites de Envíos',
+    'aliados': '3. Histórico Aliados'
+  };
+
+  var TODOS_LOS_BOTONES = ['btnProcesar','btnSoloNeto','btnSoloEnvios','btnSoloAliados','btnCierre'];
+
+  // ── Utilidad de fecha ────────────────────────────────────────
+  function toInputDate(d) {
+    var yyyy = d.getFullYear();
+    var mm   = String(d.getMonth() + 1).padStart(2, '0');
+    var dd   = String(d.getDate()).padStart(2, '0');
+    return yyyy + '-' + mm + '-' + dd;
+  }
+
+  function setFecha(which) {
+    var d = new Date();
+    if (which === 'ayer') d.setDate(d.getDate() - 1);
+    document.getElementById('fechaProceso').value = toInputDate(d);
+    document.getElementById('btnHoy').classList.toggle('active',  which === 'hoy');
+    document.getElementById('btnAyer').classList.toggle('active', which === 'ayer');
+    actualizarBotones();
+  }
+
+  function onFechaChange() {
+    var val  = document.getElementById('fechaProceso').value;
+    var hoy  = toInputDate(new Date());
+    var ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+    document.getElementById('btnHoy').classList.toggle('active',  val === hoy);
+    document.getElementById('btnAyer').classList.toggle('active', val === toInputDate(ayer));
+    actualizarBotones();
+  }
+
+  // ── Drag & Drop ──────────────────────────────────────────────
+  var zone = document.getElementById('uploadZone');
+  zone.addEventListener('click', function() { document.getElementById('csvInput').click(); });
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('over'); });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('over');
+    var f = e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+  document.getElementById('csvInput').addEventListener('change', function() {
+    if (this.files[0]) loadFile(this.files[0]);
+  });
+
+  function loadFile(file) {
+    document.getElementById('fileName').textContent = file.name;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      fileContent = e.target.result;
+      actualizarBotones();
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  // ── Estado de botones ────────────────────────────────────────
+  function actualizarBotones() {
+    var tieneArchivo = !!fileContent;
+    var tieneFecha   = !!document.getElementById('fechaProceso').value;
+    var okProceso    = tieneArchivo && tieneFecha;
+    var okCierre     = tieneFecha;  // el cierre solo necesita fecha, no archivo
+
+    ['btnProcesar','btnSoloNeto','btnSoloEnvios','btnSoloAliados'].forEach(function(id) {
+      document.getElementById(id).disabled = !okProceso;
+    });
+    document.getElementById('btnCierre').disabled = !okCierre;
+  }
+
+  function bloquearBotones() {
+    TODOS_LOS_BOTONES.forEach(function(id) {
+      document.getElementById(id).disabled = true;
+    });
+  }
+
+  function liberarBotones() {
+    actualizarBotones();
+  }
+
+  // ── Validaciones ────────────────────────────────────────────
+  function validarEntradas() {
+    if (!fileContent) { alert('Por favor, seleccione el archivo CSV.'); return false; }
+    if (!document.getElementById('fechaProceso').value) {
+      alert('Por favor, seleccione la fecha de las operaciones.'); return false;
+    }
+    return true;
+  }
+
+  function validarFecha() {
+    if (!document.getElementById('fechaProceso').value) {
+      alert('Por favor, seleccione la fecha antes de continuar.'); return false;
+    }
+    return true;
+  }
+
+  // ── Cliente HTTP hacia el Web App de Apps Script ────────────
+  // IMPORTANTE: se envía como 'text/plain' a propósito. Apps Script no
+  // responde al preflight OPTIONS que dispararía 'application/json', por lo
+  // que usar text/plain mantiene la petición como "simple request" y evita
+  // el bloqueo por CORS desde GitHub Pages. El body sigue siendo JSON y el
+  // backend lo lee con e.postData.contents.
+  function callApi(accion, extra) {
+    if (WEB_APP_URL.indexOf('PEGA_AQUI') !== -1) {
+      return Promise.reject(new Error('WEB_APP_URL no configurada en Index.html.'));
+    }
+
+    var payload = { accion: accion };
+    if (extra) Object.keys(extra).forEach(function(k) { payload[k] = extra[k]; });
+
+    return fetch(WEB_APP_URL, {
+      method:      'POST',
+      redirect:    'follow',
+      headers:     { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:        JSON.stringify(payload)
+    })
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
+      return resp.text();
+    })
+    .then(function(texto) {
+      try {
+        return JSON.parse(texto);
+      } catch (e) {
+        // Respuesta HTML = el despliegue no es público o la URL es incorrecta.
+        throw new Error('Respuesta no válida del servidor. Verifica que el despliegue '
+          + 'tenga acceso "Cualquier persona" y que la URL termine en /exec.');
+      }
+    });
+  }
+
+  // Mensajes de "procesando" por paso
+  var MSG_PROCESANDO = {
+    neto:    'Procesando CSV y guardando...',
+    envios:  'Ubicando hoja del día y guardando...',
+    aliados: 'Actualizando base de datos diaria...'
+  };
+
+  // Ejecuta un paso contra la API y refleja el resultado en el panel.
+  function ejecutarPaso(tipo, fecha) {
+    marcarProcesando(tipo, MSG_PROCESANDO[tipo]);
+
+    return callApi(tipo, { csvContent: fileContent, fecha: fecha })
+      .then(function(res) {
+        actualizarItemStatus(tipo, !!res.success, res.message || 'Sin mensaje del servidor.');
+      })
+      .catch(function(err) {
+        actualizarItemStatus(tipo, false, 'Error de comunicación: ' + err.message);
+      });
+  }
+
+  // ── ① Proceso completo en cascada ───────────────────────────
+  // NOTA: Ya NO pregunta por Cierre de Mes. Es una operación completamente separada.
+  // Se ejecutan 3 peticiones secuenciales para que el panel se actualice paso a paso.
+  function iniciarProceso() {
+    if (!validarEntradas()) return;
+    var fecha = document.getElementById('fechaProceso').value;
+
+    document.getElementById('statusPanel').style.display = 'block';
+    bloquearBotones();
+    resetearPanel();
+
+    ejecutarPaso('neto', fecha)
+      .then(function() { return ejecutarPaso('envios',  fecha); })
+      .then(function() { return ejecutarPaso('aliados', fecha); })
+      .then(liberarBotones, liberarBotones);
+  }
+
+  // ── ② Ejecutar un solo paso ─────────────────────────────────
+  function ejecutarSolo(tipo) {
+    if (!validarEntradas()) return;
+    var fecha = document.getElementById('fechaProceso').value;
+
+    document.getElementById('statusPanel').style.display = 'block';
+    bloquearBotones();
+
+    var el = document.getElementById('status-' + tipo);
+    el.className = 'status-item';
+    el.innerHTML = '<span class="status-icon">⏳</span> <span><strong>' + LABELS[tipo] + ':</strong> Esperando...</span>';
+
+    ejecutarPaso(tipo, fecha).then(liberarBotones, liberarBotones);
+  }
+
+  // ── ③ Cierre de Mes — Operación independiente y protegida ───
+  function ejecutarCierreDeMes() {
+    if (!validarFecha()) return;
+    var fecha = document.getElementById('fechaProceso').value;
+
+    if (!confirm(
+      '🗓️ CIERRE DE MES — Confirmar operación\n\n' +
+      'Esta acción archivará TODOS los datos actuales de la base de\n' +
+      'Aliados en la bóveda histórica y dejará la base en blanco.\n\n' +
+      '⚠️ Esta operación solo debe ejecutarse UNA VEZ al inicio de\n' +
+      'un nuevo mes. El backend validará si ya fue ejecutada.\n\n' +
+      '¿Confirmas que deseas proceder?'
+    )) return;
+
+    var btnCierre    = document.getElementById('btnCierre');
+    var statusCierre = document.getElementById('status-cierre');
+    bloquearBotones();
+    statusCierre.style.display = 'flex';
+    statusCierre.className     = 'status-item processing';
+    statusCierre.innerHTML     = '<span class="status-icon">⏳</span> <span><strong>Cierre de Mes:</strong> Archivando y limpiando base de datos...</span>';
+
+    callApi('cierre', { fecha: fecha })
+      .then(function(res) {
+        statusCierre.className = 'status-item ' + (res.success ? 'success' : 'warning');
+        statusCierre.innerHTML = '<span class="status-icon">' + (res.success ? '✅' : '⚠️') + '</span>'
+          + ' <span><strong>Cierre de Mes:</strong> ' + (res.message || 'Sin mensaje del servidor.') + '</span>';
+      })
+      .catch(function(err) {
+        statusCierre.className = 'status-item error';
+        statusCierre.innerHTML = '<span class="status-icon">❌</span>'
+          + ' <span><strong>Cierre de Mes:</strong> Error: ' + err.message + '</span>';
+      })
+      .then(liberarBotones);
+  }
+
+  // ── Panel visual ────────────────────────────────────────────
+  function resetearPanel() {
+    ['neto', 'envios', 'aliados'].forEach(function(id) {
+      var el = document.getElementById('status-' + id);
+      el.className = 'status-item';
+      el.innerHTML = '<span class="status-icon">⏳</span> <span><strong>' + LABELS[id] + ':</strong> Esperando...</span>';
+    });
+  }
+
+  function marcarProcesando(id, texto) {
+    var el = document.getElementById('status-' + id);
+    el.className = 'status-item processing';
+    el.innerHTML = '<span class="status-icon">⏳</span> <span><strong>' + LABELS[id] + ':</strong> ' + texto + '</span>';
+  }
+
+  function actualizarItemStatus(id, success, mensaje) {
+    var el = document.getElementById('status-' + id);
+    el.className = 'status-item ' + (success ? 'success' : 'error');
+    el.innerHTML = '<span class="status-icon">' + (success ? '✅' : '❌') + '</span>'
+      + ' <span><strong>' + LABELS[id] + ':</strong> ' + mensaje + '</span>';
+  }
+
+  // ── Inicialización ───────────────────────────────────────────
+  setFecha('hoy');
+</script>
+</body>
+</html>
