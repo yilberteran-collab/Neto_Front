@@ -293,7 +293,16 @@
   // (no la de "Cualquiera en zoom.red" ni la restringida al dominio) y copiar SU
   // URL /exec — reemplazar el valor de abajo con esa URL antes de publicar.
   // =========================================================================
-  var WEB_APP_URL = 'https://script.google.com/a/macros/zoom.red/s/AKfycbxWlLwQIUdCvDMiHC2y-cY4PoKdoI-PQFEL7-p91omGPEWzoDp_5qeW2iHZ4j91bmKdzg/exec'; // ← reemplazar por la URL de la implementación "Acceso: Cualquier usuario"
+  // 🔧 CORREGIDO: esta URL tenía el segmento "/a/macros/zoom.red/" (formato de dominio) que
+  // el comentario de arriba ya advertía como la causa exacta de "Failed to fetch" -- se
+  // quitó ese segmento para usar el alias canónico "/macros/s/.../exec". Esto por sí solo
+  // NO alcanza si el deploymentId de abajo pertenece a la implementación restringida al
+  // dominio (executeAs: USER_ACCESSING, access: DOMAIN) que ya usa el Index.html interno de
+  // ARCO -- verificar en el editor de Apps Script (Implementar > Administrar implementaciones)
+  // que exista una implementación SEPARADA con "Ejecutar como: Yo" + "Acceso: Cualquier
+  // usuario", y que el ID de abajo sea el de ESA implementación (crear una nueva si no
+  // existe). Ver ARCO_V5.3_Documentation.md para el detalle completo de este diagnóstico.
+  var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzWU2Ps9v55gIhcwVrvTsDdhI8aXFZIXFY4bhptwdrahLVp6_4Md5z1ASlm2uCj2VdvcA/exec'; // ← VERIFICAR que este ID sea el de la implementación "Acceso: Cualquier usuario"
 
   var fileContent = null;
 
