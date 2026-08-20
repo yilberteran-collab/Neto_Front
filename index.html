@@ -113,37 +113,6 @@
     .btn-primary:hover:not(:disabled) { background: #1557b0; }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* ── Botones individuales (3 columnas) ───────────────────── */
-    .btn-solo-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .btn-solo {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      background: #fff;
-      border: 1.5px solid #dadce0;
-      border-radius: 8px;
-      padding: 10px 6px;
-      font-size: 11.5px;
-      font-weight: 600;
-      color: #5f6368;
-      cursor: pointer;
-      transition: border-color .2s, color .2s, background .2s;
-      line-height: 1.3;
-      text-align: center;
-    }
-    .btn-solo .solo-icon { font-size: 18px; line-height: 1; }
-    .btn-solo-neto:hover:not(:disabled)    { border-color: #1a73e8; color: #1a73e8; background: #e8f0fe; }
-    .btn-solo-envios:hover:not(:disabled)  { border-color: #34a853; color: #137333; background: #e6f4ea; }
-    .btn-solo-aliados:hover:not(:disabled) { border-color: #9c27b0; color: #6a1980; background: #f3e5f5; }
-    .btn-solo:disabled { opacity: 0.4; cursor: not-allowed; }
-
     /* ── Divisor ──────────────────────────────────────────────── */
     .divider {
       display: flex;
@@ -270,29 +239,14 @@
     </div>
   </div>
 
-  <!-- ① Botón principal — Cascada completa (SIN cierre de mes) -->
+  <!-- ① Botón principal — único flujo de procesamiento (ARCO no distingue pasos sueltos) -->
   <button id="btnProcesar" class="btn-primary" onclick="iniciarProceso()" disabled>
-    ⚡ Procesar y Guardar en Google Sheets
+    ⚡ Procesar y Guardar en ARCO
   </button>
 
-  <!-- ② Divisor + Botones individuales -->
-  <div class="divider">
-    <hr><span>O EJECUTAR POR SEPARADO</span><hr>
-  </div>
-
-  <div class="btn-solo-row">
-    <button id="btnSoloNeto" class="btn-solo btn-solo-neto" onclick="ejecutarSolo('neto')" disabled>
-      <span class="solo-icon">🔢</span>Solo Neto General
-    </button>
-    <button id="btnSoloEnvios" class="btn-solo btn-solo-envios" onclick="ejecutarSolo('envios')" disabled>
-      <span class="solo-icon">📊</span>Solo Límites Envíos
-    </button>
-    <button id="btnSoloAliados" class="btn-solo btn-solo-aliados" onclick="ejecutarSolo('aliados')" disabled>
-      <span class="solo-icon">🤝</span>Solo Aliados
-    </button>
-  </div>
-
-  <!-- ③ Cierre de Mes — Operación independiente de mantenimiento -->
+  <!-- ② Cierre de Mes — Operación independiente de mantenimiento -->
+  <!-- NOTA: se deja intacta sin tocar; pendiente confirmar si ARCO también la
+       soporta o si debe seguir apuntando al backend de Code.js. -->
   <div class="cierre-section">
     <div class="cierre-section-header">
       <span>🗓️ Mantenimiento Mensual — Cierre de Mes</span>
@@ -308,21 +262,13 @@
     <div id="status-cierre" class="status-item" style="display:none; margin-top:10px;"></div>
   </div>
 
-  <!-- Panel de Estado en Cascada -->
+  <!-- Panel de Estado -->
   <div id="statusPanel" class="status-panel">
     <h3>Estado de Ejecución</h3>
     <ul class="status-list">
-      <li id="status-neto" class="status-item">
+      <li id="status-cascada" class="status-item">
         <span class="status-icon">⏳</span>
-        <span><strong>1. Neto General:</strong> Esperando...</span>
-      </li>
-      <li id="status-envios" class="status-item">
-        <span class="status-icon">⏳</span>
-        <span><strong>2. Límites de Envíos:</strong> Esperando...</span>
-      </li>
-      <li id="status-aliados" class="status-item">
-        <span class="status-icon">⏳</span>
-        <span><strong>3. Histórico Aliados:</strong> Esperando...</span>
+        <span><strong>Neto-Límite:</strong> Esperando...</span>
       </li>
     </ul>
   </div>
@@ -332,21 +278,30 @@
 <script>
   // =========================================================================
   // CONFIGURACIÓN DE LA API
-  // Pega aquí la URL de despliegue del Web App de Google Apps Script.
-  // Debe terminar en /exec  (NO uses la de /dev, esa no acepta peticiones
-  // anónimas y provocará errores de CORS / redirección al login).
+  //
+  // ⚠️ IMPORTANTE sobre esta URL: debe ser la implementación de Apps Script con
+  // "Acceso: Cualquier usuario" (anónima). Una URL con el patrón
+  // https://script.google.com/a/macros/<dominio>/s/.../exec (con "/a/macros/<dominio>/")
+  // es la implementación restringida al dominio de Google Workspace — un fetch()
+  // anónimo desde GitHub Pages contra esa URL termina en un redirect a login de
+  // Google sin cabeceras CORS, y el navegador lo reporta como "Failed to fetch"
+  // (exactamente el síntoma reportado). La URL correcta NO debe tener el segmento
+  // "/a/macros/<dominio>/" — es del tipo https://script.google.com/macros/s/AKfycb.../exec.
+  //
+  // Verificar en el editor de Apps Script de ARCO → Implementar → Administrar
+  // implementaciones → buscar la implementación con "Acceso: Cualquier usuario"
+  // (no la de "Cualquiera en zoom.red" ni la restringida al dominio) y copiar SU
+  // URL /exec — reemplazar el valor de abajo con esa URL antes de publicar.
   // =========================================================================
-  var WEB_APP_URL = 'https://script.google.com/a/macros/zoom.red/s/AKfycbxWlLwQIUdCvDMiHC2y-cY4PoKdoI-PQFEL7-p91omGPEWzoDp_5qeW2iHZ4j91bmKdzg/exec';
+  var WEB_APP_URL = 'https://script.google.com/a/macros/zoom.red/s/AKfycbxWlLwQIUdCvDMiHC2y-cY4PoKdoI-PQFEL7-p91omGPEWzoDp_5qeW2iHZ4j91bmKdzg/exec'; // ← reemplazar por la URL de la implementación "Acceso: Cualquier usuario"
 
   var fileContent = null;
 
   var LABELS = {
-    'neto':    '1. Neto General',
-    'envios':  '2. Límites de Envíos',
-    'aliados': '3. Histórico Aliados'
+    'cascada': 'Neto-Límite'
   };
 
-  var TODOS_LOS_BOTONES = ['btnProcesar','btnSoloNeto','btnSoloEnvios','btnSoloAliados','btnCierre'];
+  var TODOS_LOS_BOTONES = ['btnProcesar', 'btnCierre'];
 
   // ── Utilidad de fecha ────────────────────────────────────────
   function toInputDate(d) {
@@ -406,10 +361,8 @@
     var okProceso    = tieneArchivo && tieneFecha;
     var okCierre     = tieneFecha;  // el cierre solo necesita fecha, no archivo
 
-    ['btnProcesar','btnSoloNeto','btnSoloEnvios','btnSoloAliados'].forEach(function(id) {
-      document.getElementById(id).disabled = !okProceso;
-    });
-    document.getElementById('btnCierre').disabled = !okCierre;
+    document.getElementById('btnProcesar').disabled = !okProceso;
+    document.getElementById('btnCierre').disabled   = !okCierre;
   }
 
   function bloquearBotones() {
@@ -438,12 +391,13 @@
     return true;
   }
 
-  // ── Cliente HTTP hacia el Web App de Apps Script ────────────
+  // ── Cliente HTTP hacia el Web App de Apps Script (ahora ARCO) ────────────
   // IMPORTANTE: se envía como 'text/plain' a propósito. Apps Script no
   // responde al preflight OPTIONS que dispararía 'application/json', por lo
   // que usar text/plain mantiene la petición como "simple request" y evita
   // el bloqueo por CORS desde GitHub Pages. El body sigue siendo JSON y el
-  // backend lo lee con e.postData.contents.
+  // backend de ARCO debe leerlo con e.postData.contents + JSON.parse (mismo
+  // patrón que ya usaba Code.js) — ver Prompt para NetoLimite.gs.
   function callApi(accion, extra) {
     if (WEB_APP_URL.indexOf('PEGA_AQUI') !== -1) {
       return Promise.reject(new Error('WEB_APP_URL no configurada en Index.html.'));
@@ -468,16 +422,14 @@
       } catch (e) {
         // Respuesta HTML = el despliegue no es público o la URL es incorrecta.
         throw new Error('Respuesta no válida del servidor. Verifica que el despliegue '
-          + 'tenga acceso "Cualquier persona" y que la URL termine en /exec.');
+          + 'tenga acceso "Cualquier usuario" y que la URL termine en /exec.');
       }
     });
   }
 
   // Mensajes de "procesando" por paso
   var MSG_PROCESANDO = {
-    neto:    'Procesando CSV y guardando...',
-    envios:  'Ubicando hoja del día y guardando...',
-    aliados: 'Actualizando base de datos diaria...'
+    cascada: 'Enviando CSV a ARCO y procesando Neto-Límite...'
   };
 
   // Ejecuta un paso contra la API y refleja el resultado en el panel.
@@ -493,9 +445,10 @@
       });
   }
 
-  // ── ① Proceso completo en cascada ───────────────────────────
-  // NOTA: Ya NO pregunta por Cierre de Mes. Es una operación completamente separada.
-  // Se ejecutan 3 peticiones secuenciales para que el panel se actualice paso a paso.
+  // ── ① Proceso completo — un solo envío a ARCO ───────────────
+  // ARCO no distingue "solo neto" / "solo envíos" / "solo aliados": una sola
+  // petición con accion:'cascada' dispara procesarCascadaNetoLimite() del lado
+  // del servidor con el CSV completo.
   function iniciarProceso() {
     if (!validarEntradas()) return;
     var fecha = document.getElementById('fechaProceso').value;
@@ -504,28 +457,10 @@
     bloquearBotones();
     resetearPanel();
 
-    ejecutarPaso('neto', fecha)
-      .then(function() { return ejecutarPaso('envios',  fecha); })
-      .then(function() { return ejecutarPaso('aliados', fecha); })
-      .then(liberarBotones, liberarBotones);
+    ejecutarPaso('cascada', fecha).then(liberarBotones, liberarBotones);
   }
 
-  // ── ② Ejecutar un solo paso ─────────────────────────────────
-  function ejecutarSolo(tipo) {
-    if (!validarEntradas()) return;
-    var fecha = document.getElementById('fechaProceso').value;
-
-    document.getElementById('statusPanel').style.display = 'block';
-    bloquearBotones();
-
-    var el = document.getElementById('status-' + tipo);
-    el.className = 'status-item';
-    el.innerHTML = '<span class="status-icon">⏳</span> <span><strong>' + LABELS[tipo] + ':</strong> Esperando...</span>';
-
-    ejecutarPaso(tipo, fecha).then(liberarBotones, liberarBotones);
-  }
-
-  // ── ③ Cierre de Mes — Operación independiente y protegida ───
+  // ── ② Cierre de Mes — Operación independiente y protegida ───
   function ejecutarCierreDeMes() {
     if (!validarFecha()) return;
     var fecha = document.getElementById('fechaProceso').value;
@@ -562,7 +497,7 @@
 
   // ── Panel visual ────────────────────────────────────────────
   function resetearPanel() {
-    ['neto', 'envios', 'aliados'].forEach(function(id) {
+    ['cascada'].forEach(function(id) {
       var el = document.getElementById('status-' + id);
       el.className = 'status-item';
       el.innerHTML = '<span class="status-icon">⏳</span> <span><strong>' + LABELS[id] + ':</strong> Esperando...</span>';
